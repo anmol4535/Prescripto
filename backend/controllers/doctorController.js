@@ -27,4 +27,17 @@ const doctorList = async (req,res) => {
     }
 }
 
-export {changeAvalability , doctorList};
+ const clearDoctorSlots = async (req, res) => {
+  try {
+    const doctor = await doctorModel.findByIdAndUpdate(
+      req.params.id,
+      { $set: { slots_booked: {} } },
+      { new: true }
+    );
+    res.json({ success: true, doctor });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export {changeAvalability , doctorList, clearDoctorSlots};

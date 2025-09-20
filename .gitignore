@@ -16,6 +16,11 @@
 **/tailwind.config.js
 **/vite.config.js
 **/next.config.js
+# Ignore config and lock files
+**/package-lock.json
+**/package.json
+**/postcss.config.js
+**/eslint.config.js
 
 # Ignore OS files
 .DS_Store
