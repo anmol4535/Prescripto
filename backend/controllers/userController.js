@@ -200,4 +200,42 @@ const listAppointment = async (req,res) => {
     }
 }
 
-export {registerUser , loginUser,listAppointment ,getProfile ,bookAppointment, updateProfile}
+// API to cancel appointment
+const cancelAppointment = async (req, res) => {
+    try {
+        const userId = req.user.userId; 
+        const {appointmentId} = req.body;
+
+        const appointmentData = await appointmentModel.findById(appointmentId)
+
+
+        // verify appointment user
+        if(appointmentData.userId !== userId) {
+            return res.json({success:false, message:'Unauthorised Action'})
+        }
+
+        await appointmentModel.findByIdAndUpdate(appointmentId, {cancelled:true})
+        //releasing doctor slot
+        const {docId , slotDate , slotTime} = appointmentData
+
+        const doctorData = await doctorModel.findById(docId)
+
+        let slots_booked = doctorData.slots_booked
+
+        // If slotDate key does not exist or is empty, handle it safely
+        if (!slots_booked[slotDate]) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "No slots booked on this date" 
+            });
+        }
+        slots_booked[slotDate] = slots_booked[slotDate].filter(e => e !== slotTime)
+        await doctorModel.findByIdAndUpdate(docId , {slots_booked})
+        res.json({success:true , message:'Appointment Cancelled'})
+    } catch (error) {
+        console.log(error)
+        res.json({success:false, message:error.message})
+    }
+}
+
+export {registerUser ,cancelAppointment, loginUser,listAppointment ,getProfile ,bookAppointment, updateProfile}

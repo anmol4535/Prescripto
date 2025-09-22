@@ -349,7 +349,7 @@ const Appointment = () => {
   const daysOfWeek = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
   // Fetch doctor info and preserve slots_booked
-  const fetchDocInfo = () => {
+  const fetchDocInfo =  () => {
     const doc = doctors.find(d => d._id === docId);
     if (!doc) return;
 
@@ -360,98 +360,104 @@ const Appointment = () => {
 
     setDocInfo(parsedDoc);
     console.log('Fetched docInfo:', parsedDoc);
-  };
 
-  // Convert date to HH:MM 24-hour string
-  const formatTime24 = date => {
-    const h = date.getHours().toString().padStart(2, '0');
-    const m = date.getMinutes().toString().padStart(2, '0');
-    return `${h}:${m}`;
+
   };
 
   // Generate available slots excluding booked ones
   const getAvailableSlots = () => {
   if (!docInfo?.slots_booked) return;
-
-  const today = new Date();
-  const newSlots = [];
-
-  // Helper: convert "hh:mm AM/PM" to minutes
-  const timeToMinutes = timeStr => {
-    const [time, modifier] = timeStr.split(' ');
-    let [hours, minutes] = time.split(':').map(Number);
-    if (modifier === "PM" && hours !== 12) hours += 12;
-    if (modifier === "AM" && hours === 12) hours = 0;
-    return hours * 60 + minutes;
-  };
-
-  for (let i = 0; i < 7; i++) {
-    const currentDate = new Date(today);
-    currentDate.setDate(today.getDate() + i);
-
-    const endTime = new Date(currentDate);
-    endTime.setHours(21, 0, 0, 0);
-
-    // Start time
-    currentDate.setHours(i === 0 ? Math.max(today.getHours() + 1, 10) : 10, 0, 0, 0);
-
-    const slotDate = `${currentDate.getDate()}_${currentDate.getMonth() + 1}_${currentDate.getFullYear()}`;
-    const bookedTimes = (docInfo.slots_booked[slotDate] || []).map(t => timeToMinutes(t));
-
-    const daySlots = [];
-    while (currentDate < endTime) {
-      const slotTimeStr = currentDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
-      const slotMinutes = currentDate.getHours() * 60 + currentDate.getMinutes();
-
-      // Skip booked slots
-      if (!bookedTimes.includes(slotMinutes)) {
-        daySlots.push({ datetime: new Date(currentDate), time: slotTimeStr });
-      }
-
-      currentDate.setMinutes(currentDate.getMinutes() + 30);
-    }
-
-    newSlots.push(daySlots);
-  }
-
-  setDocSlots(newSlots);
+    
+        const today = new Date();
+        const newSlots = []; // Temporary array to batch updates
+    
+        for (let i = 0; i < 7; i++) {
+            const currentDate = new Date(today);
+            currentDate.setDate(today.getDate() + i);
+    
+            const endTime = new Date(currentDate);
+            endTime.setHours(21, 0, 0, 0);
+    
+            // Adjust start time based on the current day
+            if (i === 0) {
+                currentDate.setHours(Math.max(today.getHours() + 1, 10), today.getMinutes() > 30 ? 30 : 0, 0, 0);
+            } else {
+                currentDate.setHours(10, 0, 0, 0);
+            }
+    
+            const daySlots = [];
+            while (currentDate < endTime) {
+                const formattedTime = currentDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    
+                const slotDate = `${currentDate.getDate()}_${currentDate.getMonth() + 1}_${currentDate.getFullYear()}`;
+    
+                // Check availability
+                const isSlotAvailable = !docInfo.slots_booked[slotDate]?.includes(formattedTime);
+    
+                if (isSlotAvailable) {
+                    daySlots.push({
+                        datetime: new Date(currentDate),
+                        time: formattedTime,
+                    });
+                }
+    
+                // Increment by 30 minutes
+                currentDate.setMinutes(currentDate.getMinutes() + 30);
+            }
+    
+            newSlots.push(daySlots);
+        }
+    
+        setDocSlots(newSlots); // Batch state update
 };
-
 
   // Book appointment
   const bookAppointment = async () => {
-    if (!token) {
-      toast.warn('Login to book appointment');
-      return navigate('/login');
+  if (!token) {
+    toast.warn('Login to book appointment');
+    return navigate('/login');
+  }
+
+  try {
+    if (!docSlots[slotIndex]?.length || !slotTime) {
+      toast.error('Select a valid time slot');
+      return;
     }
 
-    try {
-      if (!docSlots[slotIndex]?.length || !slotTime) {
-        toast.error('Select a valid time slot');
-        return;
-      }
+    const date = docSlots[slotIndex][0].datetime;
+    const slotDate = `${date.getDate()}_${date.getMonth() + 1}_${date.getFullYear()}`; // ✅ fixed month
 
-      const date = docSlots[slotIndex][0].datetime;
-      const slotDate = `${date.getDate()}_${date.getMonth()}_${date.getFullYear()}`;
+    const { data } = await axios.post(
+      backendUrl + '/api/user/book-appointment',
+      { docId, slotDate, slotTime },
+      { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+    );
 
-      const { data } = await axios.post(
-        backendUrl + '/api/user/book-appointment',
-        { docId, slotDate, slotTime },
-        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
-      );
+    if (data.success) {
+      toast.success(data.message);
 
-      if (data.success) {
-        toast.success(data.message);
-        getDoctorsData();
-        navigate('/my-appointments');
-      } else {
-        toast.error(data.message);
-      }
-    } catch (error) {
-      console.error(error);
-      toast.error(error.message);
+      //✅ Update docInfo.slots_booked locally
+      setDocInfo(prev => {
+        const updated = { ...prev };
+        if (!updated.slots_booked[slotDate]) {
+          updated.slots_booked[slotDate] = [];
+        }
+        updated.slots_booked[slotDate].push(slotTime);
+        return updated;
+      });
+
+      setSlotTime(''); // reset selected time
+      getDoctorsData(); // keep global context fresh
+       navigate('/my-appointments'); 
+    } else {
+      toast.error(data.message);
     }
-  };
+  } catch (error) {
+    console.error(error);
+    toast.error(error.message);
+  }
+};
+
 
   // Fetch doctor info on mount or when doctors array changes
   useEffect(() => {
