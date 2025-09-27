@@ -1,34 +1,4 @@
-// import jwt from 'jsonwebtoken';
 
-// const authDoctor = async (req, res, next) => {
-//   try {
-
-//     const dtoken = req.headers['authorization']?.split(" ")[1];
-
-//         if(!dtoken){
-//           console.log("I love     you")
-//             return res.status(401).json({success:false,message: 'Not authorized login  dcjdb'})
-//         }
-
-//     // 2. Verify token
-//     const token_decode = jwt.verify(dtoken, process.env.JWT_SECRET);
-//     console.log("Decoded payload:", token_decode);
-
-//      // Attach user info safely (not in body)
-//      req.doctor = { id: token_decode.id };
-
-//     // 5. Pass control
-//     next();
-//   } catch (error) {
-//     console.error("Auth error:", error);
-//     if (error.name === "TokenExpiredError") {
-//       return res.status(401).json({ success: false, message: "Token expired" });
-//     }
-//     return res.status(401).json({ success: false, message: "Invalid token" });
-//   }
-// };
-
-// authDoctor.js
 
 import jwt from "jsonwebtoken";
 
