@@ -9,7 +9,7 @@
 **/build/
 
 # Ignore lock files if not needed
-**/package-lock.json
+
 **/yarn.lock
 
 # Ignore config files if not needed
@@ -17,8 +17,7 @@
 **/vite.config.js
 **/next.config.js
 # Ignore config and lock files
-**/package-lock.json
-**/package.json
+
 **/postcss.config.js
 **/eslint.config.js
 
