@@ -13,9 +13,7 @@
 **/yarn.lock
 
 # Ignore config files if not needed
-**/tailwind.config.js
-**/vite.config.js
-**/next.config.js
+
 # Ignore config and lock files
 
 **/postcss.config.js
